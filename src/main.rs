@@ -1,13 +1,15 @@
+mod flags;
 mod member;
 
-use std::fs::*;
+use std::{fs::*, io::BufReader};
+
+
+pub trait Parse {
+    fn read_from_file<R>(buffer: BufReader<R>) -> Option<Self> where Self: Sized;
+}
+
 
 fn main() {
-    // let args = std::env::args();
-    // if args.len() != 2 {
-    //     eprintln!("Usage: gzip <file>");
-    // }
-
     let input_file = std::env::args().nth(1).expect("Usage: gzip <file>");
     if !exists(&input_file).unwrap_or(false) {
         eprintln!("File does not exist!");
@@ -15,4 +17,5 @@ fn main() {
     }
 
     let file = File::open(&input_file).expect("Unable to open file");
+    let reader = BufReader::new(file);
 }

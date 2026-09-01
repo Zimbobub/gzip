@@ -17,6 +17,12 @@ struct CRC {
     pub isize: u32
 }
 
+struct ExtraField {
+    pub subfield_id: u16,
+    // 16 bit len put here
+    pub data: Vec<u8>
+}
+
 /// A gzipped file is made up of 1 or more 'members' (compressed data sets)
 pub struct Member {
     header: Header,
