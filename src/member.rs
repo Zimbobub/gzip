@@ -1,12 +1,12 @@
 use crate::{Parse, flags::Flags, header::Header};
-use std::io::Read;
+use std::io::{BufRead, Read};
 
 
 
 
 
-struct CRC {
-    pub crc_16: u16,
+struct CompressedData {
+    pub crc_16: Option<u16>,
     pub compressed_blocks: Vec<u8>,
     pub crc_32: u32,
     pub isize: u32
@@ -38,10 +38,10 @@ impl Parse for ExtraField {
 pub struct Member {
     header: Header,
     extra: Vec<ExtraField>,
-    filename: Option<std::ffi::CString>,
-    file_comment: Option<std::ffi::CString>,
+    filename: Option<String>,
+    file_comment: Option<String>,
 
-    fhcrc: Option<CRC>,
+    compressed_data: CompressedData,
 }
 
 
@@ -70,8 +70,63 @@ impl Parse for Member {
             }
         }
 
+        // filename
+        let filename: Option<String> = if header.flags.filename_present() {
+            let mut filename_bytes: Vec<u8> = Vec::new();
+            buffer.read_until(b'\0', &mut filename_bytes).ok()?;
+            // remove null terminator
+            if *filename_bytes.last()? != b'\0' { return None; }
+            filename_bytes.pop();
 
-        return None;
+            Some(String::from_utf8(filename_bytes).ok()?)
+        } else {
+            None
+        };
+
+        // file comment
+        let file_comment: Option<String> = if header.flags.file_comment_present() {
+            let mut file_comment_bytes: Vec<u8> = Vec::new();
+            buffer.read_until(b'\0', &mut file_comment_bytes).ok()?;
+            // remove null terminator
+            if *file_comment_bytes.last()? != b'\0' { return None; }
+            file_comment_bytes.pop();
+
+            Some(String::from_utf8(file_comment_bytes).ok()?)
+        } else {
+            None
+        };
+
+        // CRC16
+        let crc_16: Option<u16> = header.flags.crc_16_present().then(|| {
+            let mut buf: [u8; 2] = [0; 2];
+            buffer.read_exact(&mut buf).expect("failed to read crc16");
+            u16::from_le_bytes([buf[0], buf[1]])
+        });
+
+        // COMPRESSED DATA
+        todo!();
+
+        // CRC32 and isize
+        let mut buf: [u8; 4] = [0; 4];
+        buffer.read_exact(&mut buf).expect("failed to read crc32");
+        let crc_32 = u32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]);
+
+        let mut buf: [u8; 4] = [0; 4];
+        buffer.read_exact(&mut buf).expect("failed to read isize");
+        let uncompressed_data_size = u32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]);
+
+        return Some(Member {
+            header,
+            extra: extra_fields,
+            filename: filename,
+            file_comment: file_comment,
+            compressed_data: CompressedData {
+                crc_16,
+                compressed_blocks: Vec::new(),
+                crc_32,
+                isize: uncompressed_data_size
+            }
+        });
     }
 }
 
