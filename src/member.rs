@@ -1,14 +1,8 @@
+use crate::header::Header;
 
 
-struct Header {
-    id1: u8,
-    id2: u8,
-    pub compression_method: u8,
-    pub flags: u8,
-    pub modification_time: std::time::SystemTime,
-    pub extra_flags: u8,
-    pub os: u8
-}
+
+
 
 struct CRC {
     pub crc_16: u16,

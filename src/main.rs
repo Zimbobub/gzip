@@ -1,11 +1,12 @@
 mod flags;
+mod header;
 mod member;
 
 use std::{fs::*, io::BufReader};
 
 
 pub trait Parse {
-    fn read_from_file<R>(buffer: BufReader<R>) -> Option<Self> where Self: Sized;
+    fn read_from_file<R>(buffer: &mut BufReader<R>) -> Option<Self> where R: std::io::Read, Self: Sized;
 }
 
 

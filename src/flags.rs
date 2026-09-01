@@ -9,7 +9,7 @@
 /// bit 5 reserved
 /// bit 6 reserved
 /// bit 7 reserved
-pub struct Flags(u8);
+pub struct Flags(pub u8);
 
 impl Flags {
     /// Just an indicator, can be ignored
