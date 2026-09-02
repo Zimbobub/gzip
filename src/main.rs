@@ -24,5 +24,5 @@ fn main() {
     let mut reader = BufReader::new(file);
     let member = Member::read_from_file(&mut reader).unwrap();
 
-    dbg!(member);
+    // dbg!(member);
 }

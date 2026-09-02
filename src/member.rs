@@ -108,11 +108,13 @@ impl Parse for Member {
         dbg!(&file_comment);
 
         // CRC16
-        let crc_16: Option<u16> = header.flags.crc_16_present().then(|| {
+        let crc_16: Option<u16> = if header.flags.crc_16_present() {
             let mut buf: [u8; 2] = [0; 2];
-            buffer.read_exact(&mut buf).expect("failed to read crc16");
-            u16::from_le_bytes([buf[0], buf[1]])
-        });
+            buffer.read_exact(&mut buf).ok()?;
+            Some(u16::from_le_bytes([buf[0], buf[1]]))
+        } else {
+            None
+        };
         println!("{:x?}", crc_16);
 
         // COMPRESSED DATA

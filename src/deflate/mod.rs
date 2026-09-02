@@ -4,7 +4,7 @@ pub mod lz77;
 
 use std::io::Read;
 
-use crate::Parse;
+use crate::{Parse, deflate::bitstream::{BitStream, Bits}};
 
 
 
@@ -28,25 +28,27 @@ impl Parse for DeflateBlock {
     fn read_from_file<R>(buffer: &mut std::io::BufReader<R>) -> Option<Self> where R: std::io::Read, Self: Sized {
         // let mut out: Vec<u8> = Vec::new();
         // buffer.read_to_end(&mut out).unwrap();
-        // std::fs::write("./DeflatBlock", out).unwrap();
+        // std::fs::write("./example.deflate", out).unwrap();
+        println!("CURRENT BUFFER BEFORE DEFLATE BLOCK {:X?}", buffer.buffer());
 
+        let mut bits = BitStream::new(buffer);
 
-        // only use first 3 bits
-        let mut header_byte: [u8; 1] = [0; 1];
-        buffer.read_exact(&mut header_byte).ok()?;
-        let is_last_block: bool = header_byte[0] & 0x80 != 0;
-        let compression_type = match header_byte[0] & 0x60 {
-            0x00 => BlockType::Uncompressed,
-            0x20 => BlockType::CompressedFixedHuffman,
-            0x40 => BlockType::CompressedDynamicHuffman,
-            0x60 => BlockType::Reserved,
-            _ => unreachable!()
+        let is_last_block: Bits<1> =  bits.read_bits();
+        let is_last_block: bool = is_last_block.bit(0);
+
+        let compression_type: Bits<2> =  bits.read_bits();
+        let compression_type = match (compression_type.bit(0), compression_type.bit(1)) {
+            (false, false) => BlockType::Uncompressed,
+            (false, true) => BlockType::CompressedFixedHuffman,
+            (true, false) => BlockType::CompressedDynamicHuffman,
+            (true, true) => BlockType::Reserved,
         };
-
-        println!("deflate header {:x}: {:b}", header_byte[0], header_byte[0]);
+        dbg!(&is_last_block, &compression_type);
 
         let data: Vec<u8> = match compression_type {
             BlockType::Uncompressed => {
+                // skip to next byte boundary, so just use the regular bufreader
+
                 let mut uncompressed_block_metadata: [u8; 4] = [0; 4];
                 buffer.read_exact(&mut uncompressed_block_metadata).ok()?;
                 let len = u16::from_le_bytes([uncompressed_block_metadata[0], uncompressed_block_metadata[1]]);
@@ -60,6 +62,12 @@ impl Parse for DeflateBlock {
             },
             BlockType::CompressedFixedHuffman => unimplemented!(),
             BlockType::CompressedDynamicHuffman => {
+                let hlit: Bits<5> = bits.read_bits();
+                dbg!(&hlit);
+                let hlit: u8 = hlit.inner()[0];
+
+                dbg!(&hlit);
+
                 vec![]
             },
             BlockType::Reserved => unimplemented!()
