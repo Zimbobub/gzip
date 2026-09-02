@@ -1,17 +1,19 @@
-use crate::{Parse, flags::Flags, header::Header};
+use crate::{Parse, deflate::DeflateBlock, flags::Flags, header::Header};
 use std::io::{BufRead, Read};
 
 
 
 
 
+#[derive(Debug)]
 struct CompressedData {
     pub crc_16: Option<u16>,
-    pub compressed_blocks: Vec<u8>,
+    pub compressed_blocks: Vec<DeflateBlock>,
     pub crc_32: u32,
     pub isize: u32
 }
 
+#[derive(Debug)]
 struct ExtraField {
     pub subfield_id_1: u8,
     pub subfield_id_2: u8,
@@ -35,6 +37,7 @@ impl Parse for ExtraField {
 
 
 /// A gzipped file is made up of 1 or more 'members' (compressed data sets)
+#[derive(Debug)]
 pub struct Member {
     header: Header,
     extra: Vec<ExtraField>,
@@ -50,6 +53,11 @@ impl Parse for Member {
     fn read_from_file<R>(buffer: &mut std::io::BufReader<R>) -> Option<Self> where R: std::io::Read, Self: Sized {
         let header = Header::read_from_file(buffer)?;
         
+        dbg!(&header);
+
+        // ensure using DEFLATE
+        if header.compression_method != 8 { return None; }
+
         // extra fields
         let mut extra_fields: Vec<ExtraField> = Vec::new();
         if header.flags.extra_fields_present() {
@@ -69,6 +77,7 @@ impl Parse for Member {
                 if read_bytes >= xlen { break; }
             }
         }
+        dbg!(&extra_fields);
 
         // filename
         let filename: Option<String> = if header.flags.filename_present() {
@@ -82,6 +91,7 @@ impl Parse for Member {
         } else {
             None
         };
+        dbg!(&filename);
 
         // file comment
         let file_comment: Option<String> = if header.flags.file_comment_present() {
@@ -95,6 +105,7 @@ impl Parse for Member {
         } else {
             None
         };
+        dbg!(&file_comment);
 
         // CRC16
         let crc_16: Option<u16> = header.flags.crc_16_present().then(|| {
@@ -102,9 +113,20 @@ impl Parse for Member {
             buffer.read_exact(&mut buf).expect("failed to read crc16");
             u16::from_le_bytes([buf[0], buf[1]])
         });
+        println!("{:x?}", crc_16);
 
         // COMPRESSED DATA
-        todo!();
+        let mut blocks: Vec<DeflateBlock> = Vec::new();
+        loop {
+            let block = DeflateBlock::read_from_file(buffer)?;
+            dbg!(&block);
+            if block.is_last_block {
+                blocks.push(block);
+                break;
+            } else {
+                blocks.push(block);
+            }
+        }
 
         // CRC32 and isize
         let mut buf: [u8; 4] = [0; 4];
@@ -122,7 +144,7 @@ impl Parse for Member {
             file_comment: file_comment,
             compressed_data: CompressedData {
                 crc_16,
-                compressed_blocks: Vec::new(),
+                compressed_blocks: blocks,
                 crc_32,
                 isize: uncompressed_data_size
             }

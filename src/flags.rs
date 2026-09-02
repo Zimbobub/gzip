@@ -9,6 +9,7 @@
 /// bit 5 reserved
 /// bit 6 reserved
 /// bit 7 reserved
+#[derive(Debug)]
 pub struct Flags(pub u8);
 
 impl Flags {

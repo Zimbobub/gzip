@@ -1,7 +1,7 @@
 use crate::{Parse, flags::Flags};
 use std::io::Read;
 
-
+#[derive(Debug)]
 pub struct Header {
     pub compression_method: u8,
     pub flags: Flags,

@@ -1,9 +1,14 @@
+pub mod bitstream;
+pub mod huffman;
+pub mod lz77;
+
 use std::io::Read;
 
 use crate::Parse;
 
 
 
+#[derive(Debug)]
 pub enum BlockType {
     Uncompressed,
     CompressedFixedHuffman,
@@ -12,6 +17,7 @@ pub enum BlockType {
 }
 
 /// All little endian, except huffman codes
+#[derive(Debug)]
 pub struct DeflateBlock {
     pub is_last_block: bool,
     pub compression_type: BlockType,
@@ -20,6 +26,11 @@ pub struct DeflateBlock {
 
 impl Parse for DeflateBlock {
     fn read_from_file<R>(buffer: &mut std::io::BufReader<R>) -> Option<Self> where R: std::io::Read, Self: Sized {
+        // let mut out: Vec<u8> = Vec::new();
+        // buffer.read_to_end(&mut out).unwrap();
+        // std::fs::write("./DeflatBlock", out).unwrap();
+
+
         // only use first 3 bits
         let mut header_byte: [u8; 1] = [0; 1];
         buffer.read_exact(&mut header_byte).ok()?;
@@ -31,6 +42,8 @@ impl Parse for DeflateBlock {
             0x60 => BlockType::Reserved,
             _ => unreachable!()
         };
+
+        println!("deflate header {:x}: {:b}", header_byte[0], header_byte[0]);
 
         let data: Vec<u8> = match compression_type {
             BlockType::Uncompressed => {
@@ -45,7 +58,11 @@ impl Parse for DeflateBlock {
                 buffer.read_exact(&mut result).ok()?;
                 result
             },
-            _ => unimplemented!()
+            BlockType::CompressedFixedHuffman => unimplemented!(),
+            BlockType::CompressedDynamicHuffman => {
+                vec![]
+            },
+            BlockType::Reserved => unimplemented!()
         };
         
         
