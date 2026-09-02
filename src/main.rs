@@ -1,6 +1,7 @@
 mod flags;
 mod header;
 mod member;
+mod deflate;
 
 use std::{fs::*, io::BufReader};
 
