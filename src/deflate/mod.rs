@@ -63,11 +63,15 @@ impl Parse for DeflateBlock {
             BlockType::CompressedFixedHuffman => unimplemented!(),
             BlockType::CompressedDynamicHuffman => {
                 let hlit: Bits<5> = bits.read_bits();
-                dbg!(&hlit);
                 let hlit: u8 = hlit.inner()[0];
 
-                dbg!(&hlit);
+                let hdist: Bits<5> = bits.read_bits();
+                let hdist: u8 = hdist.inner()[0];
 
+                let hclen: Bits<4> = bits.read_bits();
+                let hclen: u8 = hclen.inner()[0];
+
+                println!("hlit {} hdist {} hclen {}", hlit, hdist, hclen);
                 vec![]
             },
             BlockType::Reserved => unimplemented!()
