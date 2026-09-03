@@ -55,6 +55,116 @@ impl<const N: usize> Debug for Bits<N> {
 }
 
 
+
+
+
+
+
+pub struct BitVector {
+    inner: Vec<u8>,
+    len: usize,
+}
+
+
+impl BitVector {
+    pub fn new() -> BitVector {
+        return BitVector { inner: Vec::new(), len: 0 };
+    }
+
+    pub fn with_capacity(cap: usize) -> BitVector {
+        let bytes = cap.div_ceil(8);
+        return BitVector { inner: Vec::with_capacity(bytes), len: 0 };
+    }
+
+    pub fn inner(&self) -> &Vec<u8> {
+        return &self.inner;
+    }
+
+    pub fn len(&self) -> usize {
+        return self.len;
+    }
+
+    pub fn capacity(&self) -> usize {
+        return 8 * self.inner.len();
+    }
+
+    pub fn bit(&self, index: usize) -> Option<bool> {
+        if self.len() >= index { return None; }
+
+        let byte_index = index / 8;
+        let byte = self.inner[byte_index];
+        return Some((byte >> (index % 8)) == 1);
+    }
+
+    pub fn set_bit(&mut self, index: usize, value: bool) {    
+        if self.len() >= index { return; }
+
+        // set bit to 0
+        self.inner[index / 8] &= !(1 << (index % 8));
+        // then or with `value`
+        self.inner[index / 8] |= (value as u8) << (index % 8);
+    }
+
+    fn expand(&mut self) {
+        self.inner.push(0);
+    }
+
+    pub fn push(&mut self, value: bool) {    
+        if self.len() >= self.capacity() { self.expand(); }
+
+        let index = self.len();
+
+        // set bit to 0
+        self.inner[index / 8] &= !(1 << (index % 8));
+        // then or with `value`
+        self.inner[index / 8] |= (value as u8) << (index % 8);
+        
+        self.len += 1;
+    }
+
+    pub fn pop(&mut self) -> Option<bool> {
+        let bit = self.bit(self.len()-1);
+        if self.len() > 0 { self.len -= 1; }
+        return bit;
+    }
+}
+
+
+
+impl Into<Vec<bool>> for &BitVector {
+    fn into(self) -> Vec<bool> {
+        let mut out = Vec::with_capacity(self.capacity());
+
+        for i in 0..self.len() {
+            match self.bit(i) {
+                Some(bit) => out.push(bit),
+                None => break
+            }
+        }
+
+        return out;
+    }
+}
+
+
+impl Debug for BitVector {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let bits = Into::<Vec<bool>>::into(self);
+
+        let bits = bits.into_iter()
+            .map(|bit| if bit {'1'} else {'0'} )
+            .collect::<Vec<char>>();
+
+        let (bytes, remainder) = bits.as_chunks::<8>();
+
+        let bytes: Vec<String> = bytes.iter().map(|chars| chars.iter().collect::<String>()).collect();
+        let remainder: String = remainder.iter().collect();
+
+        f.debug_list().entries(bytes).entry(&remainder).finish()
+    }
+}
+
+
 /// Note: will always read full bytes, so <R> will always be on a byte boundary
 pub struct BitStream<'a, R: Read> {
     inner: &'a mut R,
@@ -94,17 +204,24 @@ impl<'a, R: Read> BitStream<'a, R> {
     }
 
     pub fn read_bits<const N: usize>(&mut self) -> Bits<N> {
-        // println!("reading {N} bytes {:?}", self.bit_buf);
-
         let mut out: Bits<N> = Bits::new();
 
         for i in 0..N {
             let next_bit = self.next().expect("REACHED END OF STREAM");
             out.set_bit(i, next_bit);
         }
-
-        // dbg!(&out);
         
+        return out;
+    }
+
+    pub fn read_n_bits(&mut self, num_bits: usize) -> BitVector {
+        let mut out: BitVector = BitVector::with_capacity(num_bits);
+
+        for _ in 0..num_bits {
+            let next_bit = self.next().expect("REACHED END OF STREAM");
+            out.push(next_bit);
+        }
+
         return out;
     }
 }

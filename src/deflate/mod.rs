@@ -4,7 +4,7 @@ pub mod lz77;
 
 use std::io::Read;
 
-use crate::{Parse, deflate::bitstream::{BitStream, Bits}};
+use crate::{Parse, deflate::bitstream::{BitStream, BitVector, Bits}};
 
 
 
@@ -70,6 +70,8 @@ impl Parse for DeflateBlock {
 
                 let hclen: Bits<4> = bits.read_bits();
                 let hclen: u8 = hclen.inner()[0];
+
+                let code_length_codes: BitVector = bits.read_n_bits(3 * (hclen as usize + 4));
 
                 println!("hlit {} hdist {} hclen {}", hlit, hdist, hclen);
                 vec![]
